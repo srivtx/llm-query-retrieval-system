@@ -1,11 +1,11 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "app.py",
-      "use": "@vercel/python"
+  "functions": {
+    "app.py": {
+      "runtime": "@vercel/python",
+      "maxDuration": 60
     }
-  ],
+  },
   "routes": [
     {
       "src": "/(.*)",
@@ -15,11 +15,5 @@
   "env": {
     "GEMINI_API_KEY": "@gemini_api_key",
     "BEARER_TOKEN": "@bearer_token"
-  },
-  "functions": {
-    "app.py": {
-      "maxDuration": 60
-    }
-  },
-  "buildCommand": "pip install -r requirements.txt"
+  }
 }
