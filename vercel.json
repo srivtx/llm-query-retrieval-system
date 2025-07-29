@@ -20,5 +20,6 @@
     "app.py": {
       "maxDuration": 60
     }
-  }
+  },
+  "buildCommand": "pip install -r requirements.txt"
 }
