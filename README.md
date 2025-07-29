@@ -1,4 +1,4 @@
-# LLM-Powered Intel- ✅ Semantic search with scikit-learnigent Query-Retrieval System
+# LLM-Powered Intelligent Query-Retrieval System
 
 ## 🎯 Project Overview
 This is a hackathon solution for building an LLM-Powered Intelligent Query-Retrieval System that processes large documents and makes contextual decisions for insurance, legal, HR, and compliance domains.
