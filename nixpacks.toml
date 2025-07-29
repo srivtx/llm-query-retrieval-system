@@ -5,6 +5,7 @@ nixPkgs = ['python311', 'gcc']
 cmds = [
     'python -m venv /opt/venv',
     '. /opt/venv/bin/activate && pip install --upgrade pip',
+    '. /opt/venv/bin/activate && pip install torch==2.7.1+cpu torchvision==0.22.1+cpu --index-url https://download.pytorch.org/whl/cpu',
     '. /opt/venv/bin/activate && pip install --no-cache-dir -r requirements.txt'
 ]
 
