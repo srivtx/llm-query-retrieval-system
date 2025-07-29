@@ -1,4 +1,4 @@
-# LLM-Powered Intelligent Query-Retrieval System
+# LLM-Powered Intel- ✅ Semantic search with scikit-learnigent Query-Retrieval System
 
 ## 🎯 Project Overview
 This is a hackathon solution for building an LLM-Powered Intelligent Query-Retrieval System that processes large documents and makes contextual decisions for insurance, legal, HR, and compliance domains.
@@ -9,7 +9,7 @@ This is a hackathon solution for building an LLM-Powered Intelligent Query-Retri
 
 1. **Input Documents** - PDF Blob URL processing
 2. **LLM Parser** - Extract structured query using Gemini Pro
-3. **Embedding Search** - FAISS/Pinecone retrieval with semantic search
+3. **Embedding Search** - Scikit-learn similarity retrieval with semantic search
 4. **Clause Matching** - Semantic similarity analysis
 5. **Logic Evaluation** - Decision processing with LLM reasoning
 6. **Text Output** - Structured response formatting
@@ -17,7 +17,7 @@ This is a hackathon solution for building an LLM-Powered Intelligent Query-Retri
 ## 🚀 Features
 
 - ✅ **Document Processing**: Handles PDF documents from URLs
-- ✅ **Semantic Search**: Uses sentence transformers + FAISS for fast retrieval
+- ✅ **Semantic Search**: Uses sentence transformers + scikit-learn for fast retrieval
 - ✅ **LLM Integration**: Powered by Google Gemini Pro for intelligent reasoning
 - ✅ **Contextual Answers**: Provides explainable decisions with clause references
 - ✅ **RESTful API**: FastAPI implementation with authentication
@@ -89,14 +89,14 @@ python test_system.py
 ### Test Individual Components
 1. Input Documents - PDF processing
 2. LLM Parser - Query structure extraction
-3. Embedding Search - FAISS semantic search
+3. Embedding Search - Scikit-learn semantic search
 4. Complete System Integration
 5. API Endpoint testing
 
 ## 📊 System Workflow
 
 ```
-Document URL → PDF Extraction → Text Chunking → Embeddings → FAISS Index
+Document URL → PDF Extraction → Text Chunking → Embeddings → Scikit-learn Index
                                                                     ↓
 Query → LLM Parser → Query Structure → Semantic Search → Clause Matching
                                                                     ↓
@@ -118,7 +118,7 @@ Query → LLM Parser → Query Structure → Semantic Search → Clause Matching
 
 - **Accuracy**: Semantic search + LLM reasoning for precise answers
 - **Token Efficiency**: Optimized context preparation and chunk selection
-- **Latency**: FAISS for fast retrieval, optimized processing pipeline
+- **Latency**: Scikit-learn for fast retrieval, optimized processing pipeline
 - **Reusability**: Modular component architecture
 - **Explainability**: Clear decision reasoning with clause traceability
 
@@ -176,7 +176,7 @@ Health check endpoint
 ## 💡 Key Technical Decisions
 
 1. **Gemini Pro**: Chosen for powerful reasoning capabilities and cost-effectiveness
-2. **FAISS**: Free, fast vector search alternative to Pinecone
+2. **Scikit-learn**: Free, fast vector search with broad compatibility
 3. **SentenceTransformers**: High-quality embeddings with good performance
 4. **FastAPI**: Modern, fast API framework with automatic documentation
 5. **Modular Architecture**: Easy to test, maintain, and extend
@@ -200,7 +200,7 @@ Health check endpoint
    - Check internet connection
    - Verify PDF URL is accessible
 
-3. **"FAISS index error"**
+3. **"Scikit-learn index error"**
    - Ensure sentence-transformers is installed
    - Check document was processed first
 
@@ -220,7 +220,7 @@ Health check endpoint
 This system addresses all hackathon requirements:
 - ✅ Processes PDFs from URLs
 - ✅ Handles policy/contract data
-- ✅ Semantic search with FAISS
+- ✅ Semantic search with scikit-learn
 - ✅ LLM-powered reasoning
 - ✅ Structured JSON responses
 - ✅ Explainable decisions

@@ -3,7 +3,7 @@ LLM-Powered Intelligent Query-Retrieval System
 Components:
 1. Input Documents (PDF Blob URL)
 2. LLM Parser (Extract structured query)
-3. Embedding Search (FAISS retrieval)
+3. Embedding Search (Scikit-learn similarity retrieval)
 4. Clause Matching (Semantic similarity)
 5. Logic Evaluation (Decision processing)
 6. Text Output
@@ -24,13 +24,15 @@ import PyPDF2
 from docx import Document
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import faiss
+from sklearn.neighbors import NearestNeighbors
+from sklearn.metrics.pairwise import cosine_similarity
 import google.generativeai as genai
 from fastapi import FastAPI, HTTPException, Depends, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from io import BytesIO
+import uvicorn
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -157,13 +159,14 @@ class Component2_LLMParser:
         }
 
 class Component3_EmbeddingSearch:
-    """Component 3: Embedding Search - FAISS Retrieval"""
+    """Component 3: Embedding Search - Scikit-learn Similarity Retrieval"""
     
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         self.embedding_model = SentenceTransformer(model_name)
         self.dimension = self.embedding_model.get_sentence_embedding_dimension()
-        self.index = None
+        self.embeddings = None
         self.chunks = []
+        self.similarity_model = None
     
     def create_document_chunks(self, text: str, chunk_size: int = 800, overlap: int = 100) -> List[DocumentChunk]:
         """Split document into overlapping chunks"""
@@ -189,8 +192,8 @@ class Component3_EmbeddingSearch:
         logger.info(f"Created {len(chunks)} chunks from document")
         return chunks
     
-    def build_faiss_index(self, chunks: List[DocumentChunk]):
-        """Build FAISS index from document chunks"""
+    def build_search_index(self, chunks: List[DocumentChunk]):
+        """Build search index from document chunks using scikit-learn"""
         if not chunks:
             raise ValueError("No chunks provided for indexing")
         
@@ -204,51 +207,53 @@ class Component3_EmbeddingSearch:
         for chunk, embedding in zip(chunks, embeddings):
             chunk.embedding = embedding
         
-        # Create FAISS index
-        self.index = faiss.IndexFlatIP(self.dimension)  # Inner product for cosine similarity
+        # Store embeddings for similarity search
+        self.embeddings = embeddings
         
-        # Normalize embeddings for cosine similarity
-        embeddings_normalized = embeddings.copy()
-        faiss.normalize_L2(embeddings_normalized)
+        # Initialize NearestNeighbors for fast similarity search
+        self.similarity_model = NearestNeighbors(
+            n_neighbors=min(len(chunks), 20),  # Search up to 20 neighbors
+            metric='cosine',
+            algorithm='brute'  # More reliable for smaller datasets
+        )
+        self.similarity_model.fit(embeddings)
         
-        # Add to index
-        self.index.add(embeddings_normalized.astype('float32'))
-        logger.info(f"Built FAISS index with {len(chunks)} chunks")
+        logger.info(f"Built similarity search index with {len(chunks)} chunks")
     
     def semantic_search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        """Perform enhanced semantic search using FAISS"""
-        if self.index is None:
-            raise ValueError("FAISS index not built. Call build_faiss_index first.")
+        """Perform enhanced semantic search using scikit-learn"""
+        if self.embeddings is None:
+            raise ValueError("Search index not built. Call build_search_index first.")
         
         # Search with original query
         query_embedding = self.embedding_model.encode([query], convert_to_numpy=True)
-        faiss.normalize_L2(query_embedding)
         
         # Get more results initially
         extended_k = min(top_k * 3, len(self.chunks))  # Get 3x more results
-        scores, indices = self.index.search(query_embedding.astype('float32'), extended_k)
+        distances, indices = self.similarity_model.kneighbors(query_embedding, n_neighbors=extended_k)
         
         results = []
-        for score, idx in zip(scores[0], indices[0]):
-            if idx >= 0:  # Valid index
-                chunk = self.chunks[idx]
-                results.append({
-                    "content": chunk.content,
-                    "metadata": chunk.metadata,
-                    "similarity_score": float(score),
-                    "rank": len(results) + 1
-                })
+        for distance, idx in zip(distances[0], indices[0]):
+            chunk = self.chunks[idx]
+            # Convert cosine distance to similarity score
+            similarity_score = 1 - distance
+            results.append({
+                "content": chunk.content,
+                "metadata": chunk.metadata,
+                "similarity_score": float(similarity_score),
+                "rank": len(results) + 1
+            })
         
         # Also try searching for individual key terms
         query_words = query.lower().split()
         for word in query_words:
             if len(word) > 3:  # Skip short words
                 word_embedding = self.embedding_model.encode([word], convert_to_numpy=True)
-                faiss.normalize_L2(word_embedding)
-                word_scores, word_indices = self.index.search(word_embedding.astype('float32'), 5)
+                word_distances, word_indices = self.similarity_model.kneighbors(word_embedding, n_neighbors=5)
                 
-                for score, idx in zip(word_scores[0], word_indices[0]):
-                    if idx >= 0 and score > 0.3:  # Decent similarity threshold
+                for distance, idx in zip(word_distances[0], word_indices[0]):
+                    similarity_score = 1 - distance
+                    if similarity_score > 0.3:  # Decent similarity threshold
                         chunk = self.chunks[idx]
                         # Check if we already have this chunk
                         existing = next((r for r in results if r['metadata']['chunk_id'] == chunk.metadata['chunk_id']), None)
@@ -256,7 +261,7 @@ class Component3_EmbeddingSearch:
                             results.append({
                                 "content": chunk.content,
                                 "metadata": chunk.metadata,
-                                "similarity_score": float(score * 0.8),  # Slightly lower weight for word-only matches
+                                "similarity_score": float(similarity_score * 0.8),  # Slightly lower weight for word-only matches
                                 "rank": len(results) + 1
                             })
         
@@ -612,7 +617,7 @@ class IntelligentQueryRetrievalSystem:
             # Component 3: Embedding Search (Document indexing)
             logger.info("Component 3: Building embedding search index...")
             chunks = self.component3.create_document_chunks(document_text)
-            self.component3.build_faiss_index(chunks)
+            self.component3.build_search_index(chunks)
             
             self.document_processed = True
             logger.info("=== DOCUMENT PROCESSING COMPLETE ===")
@@ -840,7 +845,7 @@ if __name__ == "__main__":
     print("📋 System Components:")
     print("   1. ✅ Input Documents (PDF Blob URL)")
     print("   2. ✅ LLM Parser (Gemini Pro)")
-    print("   3. ✅ Embedding Search (FAISS)")
+    print("   3. ✅ Embedding Search (Scikit-learn Similarity)")
     print("   4. ✅ Clause Matching (Semantic Similarity)")
     print("   5. ✅ Logic Evaluation (LLM Decision Processing)")
     print("   6. ✅ Text Output")
