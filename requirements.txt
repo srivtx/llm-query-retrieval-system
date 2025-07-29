@@ -6,6 +6,7 @@ python-multipart==0.0.6
 # LLM and ML dependencies (CPU-only, lightweight)
 google-generativeai==0.3.2
 sentence-transformers==2.2.2
+huggingface_hub<0.20.0
 scikit-learn
 transformers
 
