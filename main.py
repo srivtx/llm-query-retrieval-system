@@ -220,17 +220,17 @@ class Component3_EmbeddingSearch:
         
         logger.info(f"Built similarity search index with {len(chunks)} chunks")
     
-    def semantic_search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        """Perform enhanced semantic search using scikit-learn"""
+    def semantic_search(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
+        """Perform optimized semantic search using scikit-learn"""
         if self.embeddings is None:
             raise ValueError("Search index not built. Call build_search_index first.")
         
         # Search with original query
         query_embedding = self.embedding_model.encode([query], convert_to_numpy=True)
         
-        # Get more results initially
-        extended_k = min(top_k * 3, len(self.chunks))  # Get 3x more results
-        distances, indices = self.similarity_model.kneighbors(query_embedding, n_neighbors=extended_k)
+        # Reduced neighbors for faster search
+        search_k = min(top_k * 2, len(self.chunks), 10)  # Max 10 for speed
+        distances, indices = self.similarity_model.kneighbors(query_embedding, n_neighbors=search_k)
         
         results = []
         for distance, idx in zip(distances[0], indices[0]):
@@ -244,32 +244,11 @@ class Component3_EmbeddingSearch:
                 "rank": len(results) + 1
             })
         
-        # Also try searching for individual key terms
-        query_words = query.lower().split()
-        for word in query_words:
-            if len(word) > 3:  # Skip short words
-                word_embedding = self.embedding_model.encode([word], convert_to_numpy=True)
-                word_distances, word_indices = self.similarity_model.kneighbors(word_embedding, n_neighbors=5)
-                
-                for distance, idx in zip(word_distances[0], word_indices[0]):
-                    similarity_score = 1 - distance
-                    if similarity_score > 0.3:  # Decent similarity threshold
-                        chunk = self.chunks[idx]
-                        # Check if we already have this chunk
-                        existing = next((r for r in results if r['metadata']['chunk_id'] == chunk.metadata['chunk_id']), None)
-                        if not existing:
-                            results.append({
-                                "content": chunk.content,
-                                "metadata": chunk.metadata,
-                                "similarity_score": float(similarity_score * 0.8),  # Slightly lower weight for word-only matches
-                                "rank": len(results) + 1
-                            })
-        
         # Sort by similarity and return top_k
         results.sort(key=lambda x: x['similarity_score'], reverse=True)
         final_results = results[:top_k]
         
-        logger.info(f"Enhanced search retrieved {len(final_results)} relevant chunks from {len(results)} candidates")
+        logger.info(f"Fast search retrieved {len(final_results)} relevant chunks")
         return final_results
 
 class Component4_ClauseMatching:
@@ -706,6 +685,21 @@ security = HTTPBearer()
 
 # Global system instance
 intelligent_system = None
+cached_document_url = None
+
+# Pre-warm the system on startup
+@app.on_event("startup")
+async def startup_event():
+    """Pre-warm models and system on startup"""
+    global intelligent_system
+    try:
+        logger.info("🔥 Pre-warming system models...")
+        intelligent_system = IntelligentQueryRetrievalSystem(config.GEMINI_API_KEY)
+        # Pre-load the sentence transformer model
+        _ = intelligent_system.component3.embedding_model.encode(["warmup"], convert_to_numpy=True)
+        logger.info("✅ System pre-warmed successfully!")
+    except Exception as e:
+        logger.error(f"❌ Error pre-warming system: {e}")
 
 # Pydantic models
 class QueryRequest(BaseModel):
@@ -734,17 +728,21 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
 @api_router.post("/hackrx/run", response_model=QueryResponse)
 async def run_query_system(request: QueryRequest, token: str = Depends(verify_token)):
     """Main API endpoint for the hackathon challenge"""
-    global intelligent_system
+    global intelligent_system, cached_document_url
     
     try:
         # Initialize system if not already done
         if intelligent_system is None:
             intelligent_system = IntelligentQueryRetrievalSystem(config.GEMINI_API_KEY)
         
-        # Process document
-        logger.info(f"Processing document: {request.documents}")
-        if not intelligent_system.process_document(request.documents):
-            raise HTTPException(status_code=400, detail="Failed to process document")
+        # Only process document if it's different from cached one
+        if cached_document_url != request.documents:
+            logger.info(f"Processing new document: {request.documents}")
+            if not intelligent_system.process_document(request.documents):
+                raise HTTPException(status_code=400, detail="Failed to process document")
+            cached_document_url = request.documents
+        else:
+            logger.info("Using cached document")
         
         # Process all questions
         answers = []

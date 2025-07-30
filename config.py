@@ -13,10 +13,10 @@ class Config:
     LLM_MODEL = "microsoft/DialoGPT-medium"  # Free conversational model
     USE_LOCAL_LLM = True  # Set to True to use free local LLM instead of Gemini
     
-    # Document Processing
-    CHUNK_SIZE = 800
-    CHUNK_OVERLAP = 100
-    TOP_K_RESULTS = 5
+    # Document Processing  
+    CHUNK_SIZE = 600  # Reduced for faster processing
+    CHUNK_OVERLAP = 50  # Reduced overlap
+    TOP_K_RESULTS = 3  # Reduced from 5 to 3 for speed
     
     # API Configuration
     BEARER_TOKEN = "a85e6acfd3fc5388240c5d59b46de7129d843304f7c7bd1baa554ec4ff8ee0c5"
